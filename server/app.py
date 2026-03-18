@@ -15,19 +15,46 @@ migrate = Migrate(app, db)
 
 db.init_app(app)
 
+
 @app.route('/clear')
 def clear_session():
     session['page_views'] = 0
     return {'message': '200: Successfully cleared session data.'}, 200
+
 
 @app.route('/articles')
 def index_articles():
     articles = [ArticleSchema().dump(a) for a in Article.query.all()]
     return make_response(articles)
 
-@app.route('/articles/<int:id>')
+
+@app.route('/articles/<int:id>', methods=['GET'])
 def show_article(id):
-    pass
+
+    # Initialize session
+    if 'page_views' not in session:
+        session['page_views'] = 0
+
+    # Increment
+    session['page_views'] += 1
+
+    if session['page_views'] <= 3:
+        article = Article.query.get(id)
+
+        if article:
+            return jsonify({
+                "id": article.id,
+                "title": article.title,
+                "content": article.content,
+                "author": article.author,
+                "preview": article.content[:50],
+                "minutes_to_read": len(article.content.split()) // 200 + 1,
+                "date": article.date
+            }), 200
+        else:
+            return jsonify({'error': 'Article not found'}), 404
+    else:
+        return jsonify({'message': 'Maximum pageview limit reached'}), 401
 
 
 if __name__ == '__main__':
